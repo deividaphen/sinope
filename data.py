@@ -17,8 +17,9 @@ fdf = load_dataframe_from_json('../metis/metisdb.json')
 not_ionic = fdf['compound possible'] == 0
 fdf = fdf[not_ionic]
 
-#completing null cells
+#completing null or non-finite cells
 fdf = fdf.fillna(0)
+fdf = fdf.replace([np.inf, -np.inf], 0)
 
 #possible properties to be predicted
 targetsList = ['K_VRH','G_VRH','elastic_anisotropy','poisson_ratio']
@@ -35,6 +36,9 @@ X = fdf.drop(targetsList+excluded,axis=1)
 #normalizing values
 scaler = MinMaxScaler(feature_range=(0, 1))
 X = pd.DataFrame(scaler.fit_transform(X), columns=X.columns, index=X.index)
+
+#correcting indexes
+X, y = X.sort_index(), y.sort_index()
 
 #exporting
 X.to_json(r'data/descriptors.json')

@@ -13,6 +13,10 @@ y = pd.read_json('data/targets.json')
 yK = y['K_VRH']
 yG = y['G_VRH']
 
-model = load_model('models/K_NN_raw.h5')
+model = load_model('models/K_NN.h5')
 print('\n---------------K_VRH raw results (K, X)---------------')
 evaluateModel(model,X,yK)
+
+model = load_model('models/G_NN.h5')
+print('\n---------------G_VRH raw results (G, X)---------------')
+evaluateModel(model,X,yG)
