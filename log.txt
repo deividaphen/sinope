@@ -1,0 +1,30 @@
+Traceback (most recent call last):
+  File "trainOpt.py", line 21, in <module>
+    model = searchOpt(model_raw, X, yK)
+  File "/home/sampa/Desktop/sinope/NN.py", line 125, in searchOpt
+    assert sess.run(rs_model.fit(X_test, y_test, callbacks = [
+.
+.
+.
+    y[deepcopy(key, memo)] = deepcopy(value, memo)
+  File "/home/sampa/miniconda3/envs/test/lib/python3.8/copy.py", line 161, in deepcopy
+    rv = reductor(4)
+TypeError: cannot pickle '_thread.RLock' object
+
+
+
+param_grid = {
+    'layer1': (128, 256, 512,),
+    'leaky_relu_alpha': (0.005, 0.01, 0.02, 0.05, 0.10, 0.20,),
+    'dropout': (0.1, 0.2, 0.25, 0.3, 0.4,)}
+    
+rs_model = RandomizedSearchCV(kreg, param_grid, n_jobs=-1, cv=FOLDS,
+                              scoring='neg_mean_squared_error', n_iter=SEARCH,
+                              verbose=1, random_state=RSEED)
+
+with tf.compat.v1.Session() as sess:
+    assert sess.run(rs_model.fit(X_test, y_test, callbacks = [
+                TensorBoard('data/tensorboard',
+                histogram_freq=0, write_graph=True, write_images=False),
+                ModelCheckpoint('data/modelcheckpoint',
+                verbose=0, save_weights_only=False),]))
