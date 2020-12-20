@@ -15,13 +15,14 @@ from keras.wrappers.scikit_learn import KerasRegressor
 
 RSEED = 11277149     # random fixed seed
 FOLDS = 5            # N-fold cross validation; 1/N of the samples used for testing the models
-SEARCH = 2 #300      # number of models that will be searched randomly to optimize hyperparameters
-epochs = 4 #100       # number of training steps during search
+SEARCH = 10 #300     # number of models that will be searched randomly to optimize hyperparameters
+epochs = 20 #100     # number of training steps during search
 batch_size = 32      # number of samples used in each epoch
-min_neurons = 20     # minimum number of neurons in each layer
-max_neurons = 300    # maximum number of neurons in each layer
-k_SEARCH = 2 #10     # number of k values tested
-k_min,k_max = 0,0.1  # minimum and maximum k values
+min_neurons = 50     # minimum number of neurons in each layer
+max_neurons = 500    # maximum number of neurons in each layer
+k_SEARCH = 4 #10     # number of k values tested
+k_min = 0.001        # minimum k (decay) values
+k_max = 0.1          # maximum k (dexay) values
 
 # searchNN - optimizes number of neurons in each layer
 def searchNN(X, y):
@@ -62,7 +63,7 @@ def searchNN(X, y):
     
     rs_model = RandomizedSearchCV(kreg, param_grid, n_jobs = -1, cv=FOLDS,
                               scoring = 'neg_mean_squared_error',  n_iter = SEARCH, 
-                              verbose = 0, random_state=RSEED)
+                              verbose = 1, random_state=RSEED)
     
     rs_model.fit(X_train, y_train, epochs=50)
 
@@ -85,31 +86,33 @@ def searchHyper(nh1, nh2, nh3, X, y):
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=(1/FOLDS), random_state=RSEED)
 
     def create_model(leak=0.01, drop=0.2, lera=0.001):
-        
-        model = Sequential()
 
-        # input
-        model.add(Dense(nh1, input_dim=X.shape[1]))
-        model.add(layer=LeakyReLU(alpha=leak))
-        model.add(Dropout(drop))
+    	k = 0.01
+    	model = Sequential()
 
-        # hidden layers
-        model.add(Dense(nh2, activation='relu'))
-        model.add(layer=LeakyReLU(alpha=leak))
-        model.add(Dropout(drop))
+    	# input
+    	model.add(Dense(nh1, input_dim=X.shape[1]))
+    	model.add(layer=LeakyReLU(alpha=leak))
+    	model.add(Dropout(drop))
 
-        model.add(Dense(nh3, activation='relu'))
-        model.add(layer=LeakyReLU(alpha=leak))
-        model.add(Dropout(drop))
+    	# hidden layers
+    	model.add(Dense(nh2, activation='relu'))
+    	model.add(layer=LeakyReLU(alpha=leak))
+    	model.add(Dropout(drop))
 
-        # output
-        model.add(Dense(1, activation='relu'))
-        model.add(layer=LeakyReLU(alpha=leak))
+    	model.add(Dense(nh3, activation='relu'))
+    	model.add(layer=LeakyReLU(alpha=leak))
+    	model.add(Dropout(drop))
 
-        opt = tf.keras.optimizers.Adam(lera)
-        model.compile(loss='mean_squared_error', optimizer=opt)
+    	# output
+    	model.add(Dense(1, activation='relu'))
+    	model.add(layer=LeakyReLU(alpha=leak))
 
-        return model
+    	# constant decay
+    	opt = tf.keras.optimizers.Adam(lr=lera, decay=(k/epochs))
+    	model.compile(loss='mean_squared_error', optimizer=opt)
+
+    	return model
 
     kreg = KerasRegressor(build_fn=create_model, verbose=0)
     
@@ -118,9 +121,9 @@ def searchHyper(nh1, nh2, nh3, X, y):
     lera_vec = []
     len_vec = 20
     for i in range(len_vec):
-    	leak_vec.append((i/len_vec)*(0.2-0.01)+0.01)
-    	drop_vec.append((i/len_vec)*(0.5-0.05)+0.05)
-    	lera_vec.append((i/len_vec)*(0.02-0.001)+0.001)
+    	leak_vec.append(((i/len_vec)*(0.2-0.01))+0.01) #changed () 
+    	drop_vec.append(((i/len_vec)*(0.5-0.05))+0.05)
+    	lera_vec.append(((i/len_vec)*(0.001-0.0001))+0.0001)
 
     param_grid = {
     'leak': leak_vec,
@@ -129,7 +132,7 @@ def searchHyper(nh1, nh2, nh3, X, y):
     
     rs_model = RandomizedSearchCV(kreg, param_grid, n_jobs=-1, cv=FOLDS,
                               scoring='neg_mean_squared_error', n_iter=SEARCH,
-                              verbose=0, random_state=RSEED)
+                              verbose=1, random_state=RSEED)
 
     rs_model.fit(X_test, y_test, epochs=epochs)
 
@@ -170,34 +173,35 @@ def trainNN(X, y, epochs, batch_size, nh1, nh2, nh3, leak, drop, lera):
         model.add(Dense(1, activation='relu'))
         model.add(layer=LeakyReLU(alpha=leak))
 
-        def decay(epoch):
-            leraUpdated = lera*math.exp(-k*(epoch))
-            return leraUpdated
+        # not working
+        # def decay(epoch):
+        #     leraUpdated = lera*math.exp(-k*(epoch))
+        #     return leraUpdated
 
-        opt = tf.keras.optimizers.Adam(lr=lera,decay=decay)
-
+        opt = tf.keras.optimizers.Adam(lr=lera, decay=(k/epochs))
         model.compile(loss='mean_squared_error', optimizer=opt)
 
         return model
 
-    kreg = KerasRegressor(build_fn=create_model, verbose=0))
+    kreg = KerasRegressor(build_fn=create_model, verbose=0)
 
     # possible k values
     k_vec = []
     for i in range(k_SEARCH):
-        k_vec.append((i/k_SEARCH)*(k_max-k_min)+k_min)
+        k_vec.append(((i/k_SEARCH)*(k_max-k_min))+k_min) # k_min must be > 0
 
     param_grid={'k':k_vec}
+    print ('\nK (decay) values available: {}\n'.format(k_vec))
 
     # fitting randomized search
     rs_model = RandomizedSearchCV(kreg, param_grid, n_jobs=-1, cv=FOLDS,
-                              scoring='neg_mean_squared_error', n_iter=SEARCH,
-                              verbose=0, random_state=RSEED)
+                              scoring='neg_mean_squared_error', n_iter=k_SEARCH, # changed SEARCH --> k_SEARCH
+                              verbose=1, random_state=RSEED) # change verbose 0 --> to follow the training 
 
 
-    csv_log = CSVLogger('training.log', separator=',', append=False)
-
-    rs_model.fit(X_train, y_train, epochs=epochs, batch_size=batch_size, callbacks=[csv_log,lrate])
+    name = 'training_{}.log'.format(lera) # change the name depending on the learning rate and ...
+    csv_log = CSVLogger(name, separator=',', append=False) # ... save them
+    rs_model.fit(X_train, y_train, epochs=epochs, batch_size=batch_size, callbacks=csv_log) # ... passing on only 1 callback
 
     print('A summary of the best NN model with optimized Learning Rate Decay:{}'.format(rs_model.best_params_))
 

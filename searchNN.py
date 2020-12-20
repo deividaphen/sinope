@@ -1,21 +1,27 @@
 __author__     = 'Deivid Aparecido Henrique'
 __email__      = 'deividaphen@gmail.com'
 
+import os
 import pandas as pd
 import numpy as np
 import keras
 import matminer
+from matminer.utils.io import load_dataframe_from_json, store_dataframe_as_json
 import pickle
 
 from NN import searchNN, searchHyper, evaluateModel, trainNN
+
+print ("\nAvailable cores: {}".format(os.sched_getaffinity(0)))
+os.sched_setaffinity(0, {0, 2}) # running on one core
+print ("\nRunning on core/cores {}".format(os.sched_getaffinity(0)))
 
 #constants
 epochs = 10 #3000
 batch_size = 32
 
 #imports data
-X = pd.read_json('data/descriptors.json')
-y = pd.read_json('data/targets.json')
+X = load_dataframe_from_json('data/descriptors.json')
+y = load_dataframe_from_json('data/targets.json')
 yK = y['K_VRH']
 yG = y['G_VRH']
 

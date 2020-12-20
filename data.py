@@ -8,10 +8,10 @@ import matminer
 import pickle
 
 from sklearn.preprocessing import MinMaxScaler
-from matminer.utils.io import load_dataframe_from_json
+from matminer.utils.io import load_dataframe_from_json, store_dataframe_as_json
 
 #dataframe with all numerical descriptors
-fdf = load_dataframe_from_json('../metis/metisdb.json')
+fdf = load_dataframe_from_json('metisdb.json')
 
 #excluding non-ionic compounds
 not_ionic = fdf['compound possible'] == 0
@@ -31,7 +31,8 @@ excluded = ['material_id', 'structure', 'elastic_anisotropy',
             'formula', 'composition', 'composition_oxid',
             'HOMO_character', 'HOMO_element',
             'LUMO_character', 'LUMO_element']
-X = fdf.drop(targetsList+excluded,axis=1)
+
+X = fdf.drop((targetsList+excluded), axis=1)
 
 #normalizing values
 scaler = MinMaxScaler(feature_range=(0, 1))
@@ -41,5 +42,8 @@ X = pd.DataFrame(scaler.fit_transform(X), columns=X.columns, index=X.index)
 X, y = X.sort_index(), y.sort_index()
 
 #exporting
-X.to_json(r'data/descriptors.json')
-y.to_json(r'data/targets.json')
+print("The descriptor dataset has {} entries".format(fdf.shape))
+print (X.head())
+
+store_dataframe_as_json(X, 'data/descriptors.json', compression=None, orient='split')
+store_dataframe_as_json(y, 'data/targets.json', compression=None, orient='split')
